@@ -1,119 +1,147 @@
 # Recipe API — Сервис управления рецептами
 
-RESTful API для управления кулинарными рецептами и их ингредиентами.
+RESTful API сервис для управления кулинарными рецептами и их ингредиентами.
 
-**Стек:** FastAPI + SQLAlchemy + Alembic + pytest
-
-**БД:** SQLite по умолчанию (для простоты), PostgreSQL — через переменную окружения `DATABASE_URL`.
+**Стек:** FastAPI + PostgreSQL (в Docker) / SQLite (локально) + SQLAlchemy + Alembic + Pytest
 
 ---
 
-## Быстрый старт
+## 🚀 Быстрый старт через Docker
 
-### 1. Установить зависимости
+Для запуска сервиса и базы данных PostgreSQL требуется только установленный Docker. **Дополнительно настраивать файлы или переменные окружения не требуется.**
+
+### 1. Запуск сервиса
 
 ```bash
-cd recipe_api
+docker compose up -d
+```
+
+Команда автоматически:
+* Скачает образ PostgreSQL 16
+* Соберёт образ приложения
+* Дождётся готовности базы данных (`healthcheck`)
+* Автоматически создаст необходимые таблицы в БД
+* Запустит API на порту `8000`
+
+### 2. Документация Swagger UI
+
+После запуска откройте интерактивную документацию в браузере:
+* **Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs) (или [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs))
+* **ReDoc:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+В Swagger UI настроены примеры для кнопки **"Try it out"** — можно сразу тестировать любые запросы прямо из браузера.
+
+### 3. Запуск тестов через Docker
+
+Тесты запускаются одной командой внутри изолированного контейнера:
+
+```bash
+docker compose run --rm app pytest -v
+```
+
+Все **38 тестов** проверяют CRUD-операции, валидацию полей, каскадное удаление и форматы ошибок по ТЗ.
+
+### 4. Остановка сервиса
+
+```bash
+docker compose down
+```
+
+---
+
+## 💻 Альтернативный запуск: Локально (без Docker)
+
+Если вы хотите запустить проект локально на SQLite:
+
+```bash
+# 1. Создать и активировать виртуальное окружение
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2. Установить зависимости
 pip install -r requirements.txt
-```
 
-### 2. Запустить сервер
+# 3. Запустить тесты
+pytest -v
 
-```bash
-uvicorn app.main:app --reload
-```
-
-Сервер доступен на http://localhost:8000
-
-Документация Swagger UI: http://localhost:8000/docs
-
-### 3. (Опционально) Использовать PostgreSQL
-
-```bash
-# Запустить PostgreSQL через Docker
-docker-compose up -d
-
-# Указать URL подключения
-export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/recipe_db"
+# 4. Запустить локальный сервер
 uvicorn app.main:app --reload
 ```
 
 ---
 
-## Модели
+## 📋 Модели данных
 
 ### Recipe (Рецепт)
 
-| Поле | Тип | Ограничения |
-|------|-----|-------------|
-| id | int | PK |
-| title | string | обязательное, до 100 символов |
-| description | string | обязательное, до 500 символов |
-| cooking_time_minutes | int | обязательное, 1–1440 |
-| difficulty | int | обязательное, 1–5 |
-| category | string | обязательное, одно из: breakfast / lunch / dinner / dessert / snack |
+| Поле | Тип | Ограничения | Описание |
+|------|-----|-------------|----------|
+| `id` | int | Primary Key | Уникальный ID записи |
+| `title` | string | 1–100 символов | Название рецепта |
+| `description` | string | 1–500 символов | Описание приготовления |
+| `cooking_time_minutes` | int | 1–1440 | Время готовки в минутах |
+| `difficulty` | int | 1–5 | Сложность (от 1 до 5) |
+| `category` | string | enum | `breakfast` / `lunch` / `dinner` / `dessert` / `snack` |
 
 ### Ingredient (Ингредиент)
 
-| Поле | Тип | Ограничения |
-|------|-----|-------------|
-| id | int | PK |
-| name | string | обязательное, до 100 символов |
-| quantity | float | обязательное, > 0 |
-| unit | string | обязательное, одно из: g / kg / ml / l / pcs / tbsp / tsp |
-| recipe_id | int | обязательное, FK → Recipe |
+| Поле | Тип | Ограничения | Описание |
+|------|-----|-------------|----------|
+| `id` | int | Primary Key | Уникальный ID записи |
+| `name` | string | 1–100 символов | Название ингредиента |
+| `quantity` | float | > 0 | Количество |
+| `unit` | string | enum | `g` / `kg` / `ml` / `l` / `pcs` / `tbsp` / `tsp` |
+| `recipe_id` | int | Foreign Key → Recipe | ID связанного рецепта (**ON DELETE CASCADE**) |
 
 ---
 
-## API Эндпоинты
+## 🔌 API Эндпоинты
 
-### Рецепты
+### Рецепты (`/api/recipes`)
 
-| Метод | URL | Описание | Коды |
-|-------|-----|----------|------|
-| GET | `/api/recipes` | Список всех рецептов | 200 |
-| GET | `/api/recipes/{id}` | Рецепт по id (с ингредиентами) | 200, 404 |
-| POST | `/api/recipes` | Создать рецепт | 200, 400, 500 |
-| PATCH | `/api/recipes/{id}` | Обновить рецепт | 200, 400, 404, 500 |
-| DELETE | `/api/recipes/{id}` | Удалить рецепт (каскадно) | 202, 404, 500 |
+| Метод | URL | Описание | Коды ответов |
+|---|---|---|---|
+| `GET` | `/api/recipes` | Список всех рецептов | `200` |
+| `GET` | `/api/recipes/{id}` | Рецепт по ID (с массивом ингредиентов) | `200`, `404` |
+| `POST` | `/api/recipes` | Создать новый рецепт | `200`, `400`, `500` |
+| `PATCH` | `/api/recipes/{id}` | Частично обновить поля рецепта | `200`, `400`, `404`, `500` |
+| `DELETE` | `/api/recipes/{id}` | Удалить рецепт (каскадно удаляет ингредиенты) | `202`, `404`, `500` |
 
-### Ингредиенты
+### Ингредиенты (`/api/ingredients`)
 
-| Метод | URL | Описание | Коды |
-|-------|-----|----------|------|
-| GET | `/api/ingredients` | Список всех ингредиентов | 200 |
-| GET | `/api/ingredients/{id}` | Ингредиент по id | 200, 404 |
-| POST | `/api/ingredients` | Создать ингредиент | 200, 400, 500 |
-| PATCH | `/api/ingredients/{id}` | Обновить ингредиент | 200, 400, 404, 500 |
-| DELETE | `/api/ingredients/{id}` | Удалить ингредиент | 202, 404, 500 |
+| Метод | URL | Описание | Коды ответов |
+|---|---|---|---|
+| `GET` | `/api/ingredients` | Список всех ингредиентов | `200` |
+| `GET` | `/api/ingredients/{id}` | Ингредиент по ID | `200`, `404` |
+| `POST` | `/api/ingredients` | Добавить ингредиент к рецепту | `200`, `400`, `500` |
+| `PATCH` | `/api/ingredients/{id}` | Частично обновить поля ингредиента | `200`, `400`, `404`, `500` |
+| `DELETE` | `/api/ingredients/{id}` | Удалить ингредиент по ID | `202`, `404`, `500` |
 
 ---
 
-## Примеры запросов
+## 📌 Примеры запросов и ответов (по ТЗ)
 
-### Создать рецепт
-
+### 1. Создание рецепта (POST)
 ```bash
 curl -X POST http://localhost:8000/api/recipes \
   -H "Content-Type: application/json" \
   -d '{
     "recipe": {
-      "title": "Блины",
-      "description": "Классические тонкие блины на молоке",
+      "title": "Блины классические",
+      "description": "Тонкие аппетитные блины на молоке",
       "cooking_time_minutes": 30,
       "difficulty": 2,
       "category": "breakfast"
     }
   }'
 ```
-
-**Ответ (200):**
+**Ответ (200 OK):**
 ```json
 {
   "recipe": {
     "id": 1,
-    "title": "Блины",
-    "description": "Классические тонкие блины на молоке",
+    "title": "Блины классические",
+    "description": "Тонкие аппетитные блины на молоке",
     "cooking_time_minutes": 30,
     "difficulty": 2,
     "category": "breakfast"
@@ -121,41 +149,38 @@ curl -X POST http://localhost:8000/api/recipes \
 }
 ```
 
-### Добавить ингредиент
-
+### 2. Добавление ингредиента к рецепту (POST)
 ```bash
 curl -X POST http://localhost:8000/api/ingredients \
   -H "Content-Type: application/json" \
   -d '{
     "ingredient": {
-      "name": "Мука",
-      "quantity": 200,
+      "name": "Мука пшеничная",
+      "quantity": 200.0,
       "unit": "g",
       "recipe_id": 1
     }
   }'
 ```
 
-### Получить рецепт с ингредиентами
-
+### 3. Получение рецепта со всеми ингредиентами (GET)
 ```bash
 curl http://localhost:8000/api/recipes/1
 ```
-
-**Ответ (200):**
+**Ответ (200 OK):**
 ```json
 {
   "recipe": {
     "id": 1,
-    "title": "Блины",
-    "description": "Классические тонкие блины на молоке",
+    "title": "Блины классические",
+    "description": "Тонкие аппетитные блины на молоке",
     "cooking_time_minutes": 30,
     "difficulty": 2,
     "category": "breakfast",
     "ingredients": [
       {
         "id": 1,
-        "name": "Мука",
+        "name": "Мука пшеничная",
         "quantity": 200.0,
         "unit": "g",
         "recipe_id": 1
@@ -165,23 +190,20 @@ curl http://localhost:8000/api/recipes/1
 }
 ```
 
-### Обновить рецепт (PATCH)
-
+### 4. Частичное обновление (PATCH)
 ```bash
 curl -X PATCH http://localhost:8000/api/recipes/1 \
   -H "Content-Type: application/json" \
-  -d '{"recipe": {"difficulty": 4}}'
+  -d '{"recipe": {"difficulty": 3}}'
 ```
 
-### Удалить рецепт
-
+### 5. Удаление (DELETE)
 ```bash
 curl -X DELETE http://localhost:8000/api/recipes/1
-# Ответ: 202 Accepted (ингредиенты удаляются каскадно)
 ```
+**Ответ:** статус `202 Accepted` (связанные ингредиенты удаляются автоматически).
 
-### Ошибка валидации (400)
-
+### 6. Ошибка валидации (400 Bad Request)
 ```json
 {
   "status": 400,
@@ -189,62 +211,37 @@ curl -X DELETE http://localhost:8000/api/recipes/1
 }
 ```
 
-### Ошибка сервера (500)
-
-```json
-{
-  "status": 500,
-  "reason": "Database connection error"
-}
-```
-
 ---
 
-## Тесты
-
-```bash
-python -m pytest tests/ -v
-```
-
-**38 тестов** покрывают:
-- CRUD для рецептов и ингредиентов
-- Валидацию полей (обязательность, диапазоны, enum-значения)
-- Обработку пустого тела и невалидного JSON (HTTP 400)
-- Ошибки 400/404/500 по формату ТЗ
-- Каскадное удаление ингредиентов при удалении рецепта
-- Проверку FK (нельзя создать ингредиент для несуществующего рецепта)
-
----
-
-## Структура проекта
+## 📂 Структура проекта
 
 ```
 recipe_api/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI приложение, lifespan, exception handlers
-│   ├── config.py            # Настройки, DATABASE_URL
-│   ├── database.py          # SQLAlchemy engine, session, FK pragmas
-│   ├── models.py            # Модели Recipe, Ingredient
+│   ├── main.py              # Инициализация FastAPI, роутеры, обработчики ошибок
+│   ├── config.py            # Настройки и URL базы данных
+│   ├── database.py          # Сессия SQLAlchemy и engine
+│   ├── models.py            # ORM модели Recipe и Ingredient (SQLAlchemy)
 │   ├── schemas.py           # Pydantic-схемы валидации и Swagger-модели
 │   └── routers/
 │       ├── __init__.py
-│       ├── recipes.py       # CRUD для рецептов
-│       └── ingredients.py   # CRUD для ингредиентов
+│       ├── recipes.py       # CRUD эндпоинты рецептов
+│       └── ingredients.py   # CRUD эндпоинты ингредиентов
 ├── tests/
 │   ├── __init__.py
-│   ├── conftest.py          # Фикстуры (изолированная тестовая БД, клиент)
+│   ├── conftest.py          # Тестовая БД (SQLite в памяти) и TestClient
 │   ├── test_recipes.py      # 21 тест для рецептов
 │   └── test_ingredients.py  # 17 тестов для ингредиентов
 ├── alembic/
-│   ├── env.py
+│   ├── env.py               # Конфигурация миграций
 │   ├── script.py.mako
 │   └── versions/
 ├── alembic.ini
-├── Dockerfile               # Multi-stage сборка без root-прав
-├── docker-compose.yml       # Сервисы app и db (PostgreSQL)
-├── init.sql                 # Инициализация тестовой БД в Postgres
-├── pyproject.toml           # Настройки линтера Ruff и Pytest
+├── Dockerfile               # Multi-stage сборка контейнера приложения
+├── docker-compose.yml       # Сервисы приложения и БД (PostgreSQL 16)
+├── init.sql                 # Инициализация тестовой базы в PostgreSQL
+├── pyproject.toml           # Настройки линтера Ruff и тестов Pytest
 ├── requirements.txt
 └── README.md
 ```
