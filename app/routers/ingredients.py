@@ -20,7 +20,13 @@ router = APIRouter(prefix="/api/ingredients", tags=["ingredients"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-@router.get("", response_model=IngredientListResponse)
+@router.get(
+    "",
+    response_model=IngredientListResponse,
+    summary="Получить список всех ингредиентов",
+    description='Возвращает список всех существующих ингредиентов в виде `{"list": [...]}`.',
+    response_description="Список ингредиентов",
+)
 def get_ingredients(db: DbSession):
     """Return a list of all ingredients."""
     ingredients = db.query(Ingredient).all()
@@ -30,7 +36,10 @@ def get_ingredients(db: DbSession):
 @router.get(
     "/{ingredient_id}",
     response_model=IngredientSingleResponse,
-    responses={404: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse, "description": "Ингредиент не найден"}},
+    summary="Получить ингредиент по ID",
+    description="Возвращает детальную информацию об ингредиенте по его уникальному ID.",
+    response_description="Найденный ингредиент",
 )
 def get_ingredient(ingredient_id: int, db: DbSession):
     """Return a single ingredient by id."""
@@ -46,7 +55,16 @@ def get_ingredient(ingredient_id: int, db: DbSession):
 @router.post(
     "",
     response_model=IngredientSingleResponse,
-    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    responses={
+        400: {
+            "model": ErrorResponse,
+            "description": "Ошибка валидации или recipe_id не найден",
+        },
+        500: {"model": ErrorResponse, "description": "Ошибка сервера при создании"},
+    },
+    summary="Создать новый ингредиент",
+    description="Добавляет ингредиент с обязательной привязкой к существующему рецепту через `recipe_id`.",
+    response_description="Созданный ингредиент с ID",
 )
 def create_ingredient(payload: IngredientCreateRequest, db: DbSession):
     """Create a new ingredient."""
@@ -80,10 +98,16 @@ def create_ingredient(payload: IngredientCreateRequest, db: DbSession):
     "/{ingredient_id}",
     response_model=IngredientSingleResponse,
     responses={
-        400: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
+        400: {
+            "model": ErrorResponse,
+            "description": "Ошибка валидации или несуществующий recipe_id",
+        },
+        404: {"model": ErrorResponse, "description": "Ингредиент не найден"},
+        500: {"model": ErrorResponse, "description": "Ошибка сервера"},
     },
+    summary="Частично обновить ингредиент (PATCH)",
+    description="Обновляет отдельные поля ингредиента. Если передан новый `recipe_id`, проверяется существование рецепта в базе.",
+    response_description="Обновленный ингредиент",
 )
 def update_ingredient(
     ingredient_id: int,
@@ -131,10 +155,13 @@ def update_ingredient(
     "/{ingredient_id}",
     status_code=202,
     responses={
-        202: {"description": "Accepted"},
-        404: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
+        202: {"description": "Успешно удалено"},
+        404: {"model": ErrorResponse, "description": "Ингредиент не найден"},
+        500: {"model": ErrorResponse, "description": "Ошибка сервера"},
     },
+    summary="Удалить ингредиент",
+    description="Удаляет ингредиент по ID. Возвращает статус 202 Accepted по ТЗ.",
+    response_description="Подтверждение удаления",
 )
 def delete_ingredient(ingredient_id: int, db: DbSession):
     """Delete an ingredient by id."""

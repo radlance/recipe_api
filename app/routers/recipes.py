@@ -21,7 +21,13 @@ router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-@router.get("", response_model=RecipeListResponse)
+@router.get(
+    "",
+    response_model=RecipeListResponse,
+    summary="Получить список всех рецептов",
+    description='Возвращает список всех зарегистрированных рецептов в виде JSON: `{"list": [...]}`.',
+    response_description="Список всех рецептов",
+)
 def get_recipes(db: DbSession):
     """Return a list of all recipes."""
     recipes = db.query(Recipe).all()
@@ -31,7 +37,10 @@ def get_recipes(db: DbSession):
 @router.get(
     "/{recipe_id}",
     response_model=RecipeDetailSingleResponse,
-    responses={404: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse, "description": "Рецепт не найден"}},
+    summary="Получить рецепт по ID с ингредиентами",
+    description="Возвращает карточку конкретного рецепта с вложенным массивом всех связанных ингредиентов.",
+    response_description="Найденный рецепт с ингредиентами",
 )
 def get_recipe(recipe_id: int, db: DbSession):
     """Return a single recipe by id, including its ingredients."""
@@ -47,7 +56,13 @@ def get_recipe(recipe_id: int, db: DbSession):
 @router.post(
     "",
     response_model=RecipeSingleResponse,
-    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    responses={
+        400: {"model": ErrorResponse, "description": "Ошибка валидации полей"},
+        500: {"model": ErrorResponse, "description": "Ошибка сервера при сохранении"},
+    },
+    summary="Создать новый рецепт",
+    description='Создает новый рецепт. В теле запроса ожидается JSON вида `{"recipe": {...}}` со всеми обязательными полями.',
+    response_description="Успешно созданный рецепт с присвоенным ID",
 )
 def create_recipe(payload: RecipeCreateRequest, db: DbSession):
     """Create a new recipe."""
@@ -69,10 +84,13 @@ def create_recipe(payload: RecipeCreateRequest, db: DbSession):
     "/{recipe_id}",
     response_model=RecipeSingleResponse,
     responses={
-        400: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
+        400: {"model": ErrorResponse, "description": "Недопустимые значения полей"},
+        404: {"model": ErrorResponse, "description": "Рецепт не найден"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"},
     },
+    summary="Частично обновить рецепт (PATCH)",
+    description="Обновляет переданные атрибуты рецепта. Все поля в объекте `recipe` являются необязательными.",
+    response_description="Обновленный рецепт",
 )
 def update_recipe(
     recipe_id: int,
@@ -106,10 +124,13 @@ def update_recipe(
     "/{recipe_id}",
     status_code=202,
     responses={
-        202: {"description": "Accepted"},
-        404: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
+        202: {"description": "Запрос на удаление принят (успех)"},
+        404: {"model": ErrorResponse, "description": "Рецепт не найден"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"},
     },
+    summary="Удалить рецепт (каскадное удаление)",
+    description="Удаляет рецепт по ID. Все связанные ингредиенты удаляются автоматически (CASCADE). По ТЗ возвращает статус 202 Accepted.",
+    response_description="Подтверждение удаления",
 )
 def delete_recipe(recipe_id: int, db: DbSession):
     """Delete a recipe by id (cascades to ingredients)."""

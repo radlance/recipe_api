@@ -80,15 +80,11 @@ class TestCreateRecipe:
         assert resp.status_code == 400
 
     def test_cooking_time_too_high(self, client):
-        resp = client.post(
-            "/api/recipes", json=make_recipe_payload(cooking_time_minutes=9999)
-        )
+        resp = client.post("/api/recipes", json=make_recipe_payload(cooking_time_minutes=9999))
         assert resp.status_code == 400
 
     def test_cooking_time_zero(self, client):
-        resp = client.post(
-            "/api/recipes", json=make_recipe_payload(cooking_time_minutes=0)
-        )
+        resp = client.post("/api/recipes", json=make_recipe_payload(cooking_time_minutes=0))
         assert resp.status_code == 400
 
     def test_title_too_long(self, client):

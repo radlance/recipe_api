@@ -32,8 +32,6 @@ class Ingredient(Base):
     name = Column(String(100), nullable=False)
     quantity = Column(Float, nullable=False)
     unit = Column(String(10), nullable=False)
-    recipe_id = Column(
-        Integer, ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False
-    )
+    recipe_id = Column(Integer, ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False)
 
     recipe = relationship("Recipe", back_populates="ingredients")
