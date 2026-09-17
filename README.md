@@ -41,7 +41,7 @@ docker compose up -d
 docker compose run --rm app pytest -v
 ```
 
-Все **38 тестов** проверяют CRUD-операции, валидацию полей, каскадное удаление и форматы ошибок по ТЗ.
+Все **42 теста** проверяют CRUD-операции, валидацию полей, каскадное удаление, системные эндпоинты (`/health`, `/`) и форматы ошибок по ТЗ.
 
 ### 4. Остановка сервиса
 
@@ -232,9 +232,10 @@ recipe_api/
 │       └── ingredients.py   # CRUD эндпоинты ингредиентов
 ├── tests/
 │   ├── __init__.py
-│   ├── conftest.py          # Тестовая БД (SQLite в памяти) и TestClient
+│   ├── conftest.py          # Тестовая БД (SQLite) и TestClient
 │   ├── test_recipes.py      # 21 тест для рецептов
-│   └── test_ingredients.py  # 17 тестов для ингредиентов
+│   ├── test_ingredients.py  # 17 тестов для ингредиентов
+│   └── test_system.py       # 4 теста для /health, /docs редиректа и get_db
 ├── alembic/
 │   ├── env.py               # Конфигурация миграций
 │   ├── script.py.mako

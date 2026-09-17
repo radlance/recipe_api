@@ -30,6 +30,13 @@ env/
 # Alembic
 alembic/versions/__pycache__/
 
+# Coverage & Linting caches
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
 # OS
 .DS_Store
 Thumbs.db
+

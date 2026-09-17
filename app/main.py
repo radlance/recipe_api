@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.database import Base, engine
+from app.database import Base, engine, get_db
 from app.models import Ingredient, Recipe  # noqa: F401 — register models
 from app.routers import ingredients, recipes
 from app.seed import seed_initial_data
@@ -32,6 +34,7 @@ async def lifespan(app: FastAPI):
 tags_metadata = [
     {"name": "recipes", "description": "Операции с рецептами"},
     {"name": "ingredients", "description": "Операции с ингредиентами"},
+    {"name": "system", "description": "Системные эндпоинты и мониторинг"},
 ]
 
 app = FastAPI(
@@ -41,6 +44,30 @@ app = FastAPI(
     openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Перенаправление на интерактивную документацию Swagger UI."""
+    return RedirectResponse(url="/docs")
+
+
+@app.get(
+    "/health",
+    tags=["system"],
+    summary="Проверка работоспособности сервиса",
+    description="Проверяет доступность API и соединение с базой данных.",
+)
+def health_check(db: Session = Depends(get_db)):
+    """Health check verifying both API and database connectivity."""
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as exc:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "database": f"disconnected: {exc}"},
+        )
 
 
 @app.exception_handler(RequestValidationError)
