@@ -1,5 +1,7 @@
 # Recipe API — Сервис управления рецептами
 
+[![CI/CD Pipeline](https://github.com/radlance/recipe_api/actions/workflows/ci.yml/badge.svg)](https://github.com/radlance/recipe_api/actions/workflows/ci.yml)
+
 RESTful API сервис для управления кулинарными рецептами и их ингредиентами.
 
 **Стек:** FastAPI + PostgreSQL (в Docker) / SQLite (локально) + SQLAlchemy + Alembic + Pytest
