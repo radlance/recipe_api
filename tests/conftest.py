@@ -6,6 +6,7 @@ _test_db_fd, _test_db_path = tempfile.mkstemp(suffix=".db", prefix="recipe_test_
 os.close(_test_db_fd)
 TEST_DATABASE_URL = f"sqlite:///{_test_db_path}"
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+os.environ["TESTING"] = "true"
 
 import pytest
 from fastapi.testclient import TestClient

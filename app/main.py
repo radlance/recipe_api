@@ -8,6 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database import Base, engine
 from app.models import Ingredient, Recipe  # noqa: F401 — register models
 from app.routers import ingredients, recipes
+from app.seed import seed_initial_data
 
 
 @asynccontextmanager
@@ -23,6 +24,8 @@ async def lifespan(app: FastAPI):
         command.stamp(alembic_cfg, "head")
     except Exception:
         pass
+
+    seed_initial_data()
     yield
 
 
